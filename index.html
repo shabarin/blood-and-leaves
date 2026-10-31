@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Кровь и Листва — хроники четырёх земель</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div class="hud-corner tl">
+    <div class="char-head">
+      <span id="factionBadge" class="badge">ЭЛЬФ</span>
+      <span id="charName">Кирилл</span>
+      <span id="charLevel" class="lvl">1 ур.</span>
+    </div>
+    <div class="bar hp"><div id="hpFill" class="fill"></div><span id="hpText">100 / 100</span></div>
+    <div class="bar stamina"><div id="stFill" class="fill"></div></div>
+    <div class="stat-row">
+      <span class="stat gold"><i></i><b id="goldText">50</b></span>
+      <span class="stat xp"><i></i><b id="xpText">0 / 100 опыта</b></span>
+    </div>
+    <div id="injuryList" class="injury-list"></div>
+    <div id="bleedingWarn" class="bleed hidden">КРОВОТЕЧЕНИЕ — нажмите H, чтобы перевязать</div>
+    <div class="inv-mini">
+      <span>🧪 <b id="potionCount">2</b> <em>1</em></span>
+      <span>🩹 <b id="bandageCount">1</b> <em>H</em></span>
+    </div>
+  </div>
+
+  <div class="hud-corner tr">
+    <div class="zone-plate">
+      <span class="zone-label">ЗЕМЛИ</span>
+      <b id="zoneName">Долина людей</b>
+    </div>
+    <div class="quest-box">
+      <div class="quest-title"><span class="diamond"></span><span id="questTitle">Задание</span></div>
+      <div id="questText">Вы пока свободны. Найдите командира или старейшину.</div>
+      <div class="quest-progress"><div id="questBar"></div></div>
+    </div>
+    <canvas id="minimap" width="190" height="190"></canvas>
+  </div>
+
+  <div id="crosshair"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="toasts"></div>
+  <div id="floatingLayer"></div>
+
+  <div class="controls-hint">
+    <span><b>WASD</b> движение</span>
+    <span><b>ЛКМ</b> удар</span>
+    <span><b>ПКМ</b> блок</span>
+    <span><b>Пробел</b> прыжок</span>
+    <span><b>E</b> действие</span>
+    <span><b>M</b> карта</span>
+    <span><b>Esc</b> пауза</span>
+  </div>
+</div>
+
+<!-- ================= OVERLAYS ================= -->
+<div id="eyeLoss" class="hidden"></div>
+<div id="bloodVignette"></div>
+<div id="hitFlash"></div>
+<div id="stanceTag" class="hidden">БЛОК</div>
+
+<!-- ================= MENU ================= -->
+<div id="menu" class="overlay menu">
+  <div class="menu-fog"></div>
+  <div class="menu-content">
+    <div class="title-wrap">
+      <div class="title-kicker">хроники четырёх земель</div>
+      <h1>КРОВЬ <span>и</span> ЛИСТВА</h1>
+      <div class="title-sub">3D-экшен · три судьбы · один лес</div>
+    </div>
+
+    <div class="menu-panel">
+      <div class="panel-label">Выберите свою судьбу</div>
+      <div id="factionCards" class="faction-cards">
+        <button class="faction-card" data-faction="elf">
+          <div class="fc-icon">🍃</div>
+          <div class="fc-name">Лесные эльфы</div>
+          <div class="fc-desc">Густой лес, деревянные дома, набеги имперцев и тёмных. Защищайте чащу и грабьте корованы.</div>
+          <div class="fc-bonus">Ловкость · лесной шаг · луки и клинки</div>
+        </button>
+        <button class="faction-card" data-faction="guard">
+          <div class="fc-icon">🛡️</div>
+          <div class="fc-name">Стража дворца</div>
+          <div class="fc-desc">Слушайтесь командира: патрули, защита дворца от партизан и шпионов, ответные набеги.</div>
+          <div class="fc-bonus">Стойкость · тяжёлая броня · щит</div>
+        </button>
+        <button class="faction-card" data-faction="villain">
+          <div class="fc-icon">☠️</div>
+          <div class="fc-name">Тёмный Владыка</div>
+          <div class="fc-desc">Старый форт в горах. Вы сами командир: ведите войско на дворец, эльфов или грабьте корованы.</div>
+          <div class="fc-bonus">Власть · ярость · войско</div>
+        </button>
+      </div>
+
+      <div class="menu-row">
+        <input id="nameInput" maxlength="18" placeholder="Имя героя" value="Кирилл" />
+        <button id="startBtn" class="btn primary" disabled>Начать судьбу</button>
+        <button id="continueBtn" class="btn ghost hidden">Продолжить</button>
+      </div>
+      <div class="menu-note">Кликните по карточке, чтобы выбрать сторону. Игра сохраняется в браузере.</div>
+    </div>
+
+    <div class="menu-footer">
+      <span>WASD — движение · Shift — бег · Space — прыжок · ЛКМ — удар · ПКМ — блок · E — действие</span>
+      <span>v1.0 · Three.js</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= LOADING ================= -->
+<div id="loading" class="overlay hidden loading">
+  <div class="loader-ring"></div>
+  <div class="loading-title">Пробуждаем древний лес…</div>
+  <div id="loadingTip" class="loading-tip"></div>
+</div>
+
+<!-- ================= DIALOG ================= -->
+<div id="dialogModal" class="modal hidden">
+  <div class="modal-card dialog-card">
+    <div class="modal-head">
+      <div class="portrait" id="dialogPortrait">!</div>
+      <div>
+        <div class="modal-kicker" id="dialogKicker">РАЗГОВОР</div>
+        <h2 id="dialogTitle">Командир</h2>
+      </div>
+    </div>
+    <p id="dialogText" class="dialog-text"></p>
+    <div id="dialogOptions" class="dialog-options"></div>
+    <div class="modal-foot"><span>Esc — закрыть</span></div>
+  </div>
+</div>
+
+<!-- ================= SHOP ================= -->
+<div id="shopModal" class="modal hidden">
+  <div class="modal-card shop-card">
+    <div class="modal-head">
+      <div>
+        <div class="modal-kicker" id="shopKicker">ТОРГОВЕЦ</div>
+        <h2 id="shopTitle">Лавка</h2>
+      </div>
+      <div class="shop-gold">🪙 <b id="shopGold">0</b></div>
+    </div>
+    <div id="shopItems" class="shop-items"></div>
+    <div class="modal-foot"><span>Покупки применяются сразу</span><button class="btn ghost small" data-close>Закрыть</button></div>
+  </div>
+</div>
+
+<!-- ================= INVENTORY ================= -->
+<div id="invModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><div><div class="modal-kicker">СНАРЯЖЕНИЕ</div><h2>Инвентарь</h2></div></div>
+    <div id="invBody" class="inv-body"></div>
+    <div class="modal-foot"><span>1 — выпить зелье · H — перевязать рану</span><button class="btn ghost small" data-close>Закрыть</button></div>
+  </div>
+</div>
+
+<!-- ================= MAP ================= -->
+<div id="mapModal" class="modal hidden">
+  <div class="modal-card map-card">
+    <div class="modal-head"><div><div class="modal-kicker">КАРТА МИРА</div><h2>Четыре земли</h2></div></div>
+    <div class="map-wrap"><canvas id="bigmap" width="720" height="720"></canvas></div>
+    <div class="map-legend">
+      <span><i class="dot elf"></i> Лес эльфов</span>
+      <span><i class="dot guard"></i> Империя</span>
+      <span><i class="dot neutral"></i> Люди</span>
+      <span><i class="dot villain"></i> Пустоши</span>
+      <span><i class="dot you"></i> Вы</span>
+    </div>
+    <div class="modal-foot"><span>М — закрыть</span><button class="btn ghost small" data-close>Закрыть</button></div>
+  </div>
+</div>
+
+<!-- ================= COMMAND ================= -->
+<div id="commandModal" class="modal hidden">
+  <div class="modal-card command-card">
+    <div class="modal-head"><div><div class="modal-kicker">ТЁМНЫЙ ВЛАДЫКА</div><h2>Приказы войску</h2></div></div>
+    <p class="dialog-text">Вы сами себе командир. Отряд из четырёх бойцов ждёт приказа. Кровь и пепел!</p>
+    <div id="commandOptions" class="command-options"></div>
+    <div class="modal-foot"><span>T — закрыть</span></div>
+  </div>
+</div>
+
+<!-- ================= PAUSE ================= -->
+<div id="pauseModal" class="modal hidden">
+  <div class="modal-card pause-card">
+    <div class="modal-head"><div><div class="modal-kicker">ПАУЗА</div><h2>Передышка</h2></div></div>
+    <div class="pause-grid">
+      <button id="resumeBtn" class="btn primary">Продолжить</button>
+      <button id="saveMenuBtn" class="btn">Сохранить игру</button>
+      <button id="loadMenuBtn" class="btn">Загрузить игру</button>
+      <button id="controlsBtn" class="btn">Управление</button>
+      <button id="quitBtn" class="btn danger">Выйти в главное меню</button>
+    </div>
+    <div id="saveSlots" class="save-slots"></div>
+    <div id="controlsHelp" class="controls-help hidden">
+      <div><b>WASD</b> — движение</div>
+      <div><b>Shift</b> — бег (тратит выносливость)</div>
+      <div><b>Space</b> — прыжок</div>
+      <div><b>ЛКМ</b> — атака, <b>ПКМ</b> — блок</div>
+      <div><b>E</b> — заговорить / обыскать / войти в лавку</div>
+      <div><b>H</b> — перевязать рану, <b>1</b> — зелье лечения</div>
+      <div><b>M</b> — карта, <b>I</b> — инвентарь, <b>T</b> — приказы (за Тёмного)</div>
+      <div><b>F5</b> — быстрое сохранение, <b>F9</b> — быстрая загрузка</div>
+      <div class="muted">Попав в плен к ране — идите к лекарю. Потерянную руку, ногу или глаз можно заменить протезом.</div>
+    </div>
+    <div class="modal-foot"><span>Esc — вернуться в игру</span></div>
+  </div>
+</div>
+
+<!-- ================= DEATH ================= -->
+<div id="deathScreen" class="overlay death hidden">
+  <div class="death-content">
+    <div class="death-kicker">ВАША ИСТОРИЯ ОБОРВАЛАСЬ</div>
+    <h1>СМЕРТЬ</h1>
+    <p id="deathText">Тьма сомкнулась над вами.</p>
+    <div class="death-actions">
+      <button id="respawnBtn" class="btn primary">Очнуться у лекаря</button>
+      <button id="loadDeathBtn" class="btn">Загрузить сохранение</button>
+      <button id="quitDeathBtn" class="btn ghost">В главное меню</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

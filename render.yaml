@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: blood-and-leaves
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: true
